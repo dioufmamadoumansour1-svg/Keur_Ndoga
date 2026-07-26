@@ -1,0 +1,25 @@
+{
+  "name": "Keur Ndoga - Stars du Quartier",
+  "short_name": "Keur Ndoga",
+  "description": "Plateforme officielle de l'équipe de foot Keur Ndoga : effectif, staff, classement tactique et statistiques de matchs.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#1b5e20",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

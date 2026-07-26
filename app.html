@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keur Ndoga - Stars du Quartier</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1b5e20">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Keur Ndoga">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    .terrain-vert {
+        background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+        border: 4px solid white;
+        border-radius: 15px;
+        min-height: 550px;
+        position: relative;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+    }
+    .ligne-centrale {
+        position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(255,255,255,0.4);
+    }
+    .cercle-central {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100px; height: 100px; border: 2px solid rgba(255,255,255,0.4); border-radius: 50%;
+    }
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+    .nav-link.active-page { text-decoration: underline; }
+    #loading-overlay {
+        position: fixed; inset: 0; background: rgba(255,255,255,0.9);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 2000; font-weight: bold; font-size: 1.2rem; color: #1b5e20;
+    }
+</style>
+</head>
+<body class="bg-light">
+
+<div id="loading-overlay">⏳ Chargement des données de l'équipe...</div>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-success mb-4 shadow">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#" onclick="showPage('accueil');return false;">🌳 Keur Ndoga</a>
+        <div class="navbar-nav ms-auto flex-row gap-3">
+            <a href="#" data-page="accueil" class="nav-link text-white fw-bold" onclick="showPage('accueil');return false;">🏠 Accueil</a>
+            <a href="#" data-page="effectif" class="nav-link text-white fw-bold" onclick="showPage('effectif');return false;">👥 Effectif</a>
+            <a href="#" data-page="staff" class="nav-link text-white fw-bold" onclick="showPage('staff');return false;">👔 Staff</a>
+            <a href="#" data-page="classement" class="nav-link text-white fw-bold" onclick="showPage('classement');return false;">📋 Classement</a>
+            <a href="#" data-page="matchs" class="nav-link text-white fw-bold" onclick="showPage('matchs');return false;">🏟️ Matchs &amp; Stats</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container pb-5">
+    <div id="alert-admin" class="alert alert-danger text-center fw-bold shadow-sm" style="display:none;"></div>
+
+    <div id="page-accueil" class="page-section active">
+        <div class="text-center py-5">
+            <div class="mb-3" style="font-size: 5rem;">🌳⚽</div>
+            <h1 class="display-4 fw-bold text-success">KEUR NDOGA</h1>
+            <h3 class="text-muted fst-italic mb-4">"L'Alliance des Cœurs"</h3>
+            <p class="lead text-secondary mx-auto" style="max-width: 600px;">
+                Plateforme officielle synchronisée pour toute l'équipe.
+            </p>
+        </div>
+    </div>
+
+    <div id="page-effectif" class="page-section">
+        <div class="row mb-4 align-items-center">
+            <div class="col-md-6"><h1 class="h3 text-success fw-bold">Effectif Complet des Joueurs</h1></div>
+            <div class="col-md-6">
+                <div class="d-flex gap-2">
+                    <input type="text" id="recherche-effectif" class="form-control" placeholder="Rechercher...">
+                    <button type="button" class="btn btn-success" onclick="renderEffectif()">Rechercher</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('recherche-effectif').value='';renderEffectif();">Tous</button>
+                </div>
+            </div>
+        </div>
+        <div class="row" id="effectif-container"></div>
+    </div>
+
+    <div id="page-staff" class="page-section">
+        <h1 class="h3 text-success fw-bold mb-3">👔 Le Staff Technique &amp; Administratif</h1>
+        <div class="row" id="staff-container"></div>
+    </div>
+
+    <div id="page-classement" class="page-section">
+        <h1 class="h3 text-success fw-bold mb-3">📋 Classement Tactique sur le Terrain</h1>
+        <div class="d-flex flex-wrap gap-2 mb-4" id="dispo-buttons"></div>
+        <form onsubmit="return sauvegarderTerrain(event)">
+            <div class="terrain-vert p-4 mb-4 text-white position-relative">
+                <div class="ligne-centrale"></div>
+                <div class="cercle-central"></div>
+                <h4 class="text-center fw-bold text-warning mb-4 bg-dark bg-opacity-50 py-2 rounded" id="terrain-titre"></h4>
+                <div id="terrain-rows"></div>
+                <div class="row text-center justify-content-center mt-3 pt-3 border-top border-light">
+                    <div class="col-md-4">
+                        <strong>🧤 Gardien de But</strong><br>
+                        <select id="pos-gardien" class="form-select form-select-sm player-select">
+                            <option value="">-- Choisir --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card p-3 mb-3 bg-white shadow-sm mx-auto" style="max-width: 400px;">
+                <label class="form-label fw-bold text-danger">🔒 Mot de passe Administrateur :</label>
+                <input type="password" id="admin-password-terrain" class="form-control" required>
+            </div>
+            <div class="text-center"><button type="submit" class="btn btn-success btn-lg px-5 fw-bold shadow" id="btn-save-terrain">💾 Enregistrer mon classement</button></div>
+        </form>
+    </div>
+
+    <div id="page-matchs" class="page-section">
+        <h1 class="h3 text-success fw-bold mb-4">🏟️ Historique, Matchs et Statistiques</h1>
+
+        <div class="card shadow-sm border-0 p-4 mb-4 bg-white">
+            <h5 class="text-success fw-bold mb-1">✏️ Modifier les statistiques des joueurs</h5>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Joueur</th><th style="width:140px;">⚽ Buts</th><th style="width:140px;">👟 Passes</th></tr></thead>
+                    <tbody id="stats-joueurs-tbody"></tbody>
+                </table>
+            </div>
+            <div class="mb-3" style="max-width: 400px;">
+                <label class="form-label fw-bold text-danger">🔒 Mot de passe Admin :</label>
+                <input type="password" id="admin-password-stats" class="form-control">
+            </div>
+            <button type="button" class="btn btn-success fw-bold px-4" id="btn-save-stats" onclick="enregistrerStatsJoueurs()">💾 Enregistrer les statistiques</button>
+        </div>
+
+        <div class="card shadow-sm border-0 p-4 mb-4 bg-white">
+            <h5 class="text-success fw-bold mb-3">➕ Enregistrer un nouveau match</h5>
+            <form onsubmit="return ajouterMatch(event)">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4"><label class="form-label fw-bold">Adversaire :</label><input type="text" id="m-adversaire" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label fw-bold">Score Keur Ndoga :</label><input type="number" id="m-score-equipe" class="form-control" min="0" required></div>
+                    <div class="col-md-3"><label class="form-label fw-bold">Score Adversaire :</label><input type="number" id="m-score-adversaire" class="form-control" min="0" required></div>
+                    <div class="col-md-2"><label class="form-label fw-bold">Date :</label><input type="date" id="m-date" class="form-control" required></div>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold text-secondary mb-0">⚽ Actions du match</h6>
+                    <button type="button" class="btn btn-outline-success btn-sm fw-bold" onclick="ajouterLigneAction()">+ Ajouter une action</button>
+                </div>
+                <div id="actions-container" class="vstack gap-2 mb-3"></div>
+                <div class="mb-3" style="max-width: 400px;">
+                    <label class="form-label fw-bold text-danger">🔒 Mot de passe Admin :</label>
+                    <input type="password" id="admin-password-match" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-success fw-bold px-4" id="btn-save-match">Enregistrer le match complet</button>
+            </form>
+        </div>
+
+        <div class="row" id="matchs-container"></div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalProfil" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body p-4 text-center" id="modalProfilBody"></div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  const ADMIN_PASSWORD = 'keurndoga2026';
+
+  // ===================== CONFIGURATION JSONBIN.IO =====================
+  // Remplace ces deux valeurs par celles obtenues sur jsonbin.io (voir instructions)
+  const JSONBIN_BIN_ID = '6a661f3cf5f4af5e29c3bc0a';
+  const JSONBIN_API_KEY = '$2a$10$eY6OS03WGK35faXluakwI.ILMxQbvY6dEZvJC0DtQ77dLiMwPjM3y'; // ta "X-Master-Key"
+  const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+  // ======================================================================
+
+  const joueurs = [
+      {id:1, prenom:'Daouda', nom:'Diouf', poste:'Milieu', numero_maillot:99, pied_fort:'Droit', statut_equipe:'Capitaine', description:"L'Empereur du Milieu : Il dicte le tempo, récupère les ballons et régale le public."},
+      {id:2, prenom:'Abdoul Aziz', nom:'Diouf', poste:'Pointe', numero_maillot:9, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Fauve de la Surface : Puissant, rapide et doté d'un pied droit chirurgical pour faire trembler les filets."},
+      {id:3, prenom:'Serigne Saliou', nom:'Faye', poste:'Ex centre', numero_maillot:7, pied_fort:'Droit', statut_equipe:'Joueur', description:"La Terreur des Ailes : Vif, technique et doté d'une accélération foudroyante."},
+      {id:4, prenom:'Mamadou Mansour', nom:'Diouf', poste:'Ex centre et mo', numero_maillot:75, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Phénomène Technique : Capable de faire la différence sur un crochet ou d'inventer une passe décisive."},
+      {id:5, prenom:'Saliou', nom:'Diagne', poste:'Pointe', numero_maillot:19, pied_fort:'Droit', statut_equipe:'Joueur', description:"L'Instinct du Buteur : Ne laisse aucune chance aux gardiens grâce à son sang-froid redoutable."},
+      {id:6, prenom:'Abdou Aziz', nom:'Diouf', poste:'Mdr', numero_maillot:41, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Coffre-Fort : Il récupère, il nettoie, il distribue. Le poumon de l'équipe."},
+      {id:7, prenom:'Serigne Fallou', nom:'Thiaw', poste:'Mr mo', numero_maillot:47, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Chef d'Orchestre : Vision du jeu panoramique, passes millimétrées et sens du tempo."},
+      {id:8, prenom:'Mouhamed', nom:'Diouf', poste:'Mr', numero_maillot:88, pied_fort:'Gauche / Droite', statut_equipe:'Joueur', description:"L'Arme Fatale : Aussi habile du gauche que du droit, un milieu moderne et imprévisible."},
+      {id:9, prenom:'Modou', nom:'Diouf', poste:'Lateral gauche', numero_maillot:6, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Moteur Diesel : Infatigable, il arpente son couloir gauche du début à la fin du match."},
+      {id:10, prenom:'Mohamet', nom:'Diouf', poste:'Lateral droite', numero_maillot:8, pied_fort:'Gauche', statut_equipe:'Joueur', description:"La Précision Chirurgicale : Une vision du jeu rare pour un latéral et une solidité à toute épreuve."},
+      {id:11, prenom:'Mbissane', nom:'Mbaye', poste:'Lateral / ex centre', numero_maillot:2, pied_fort:'Droit', statut_equipe:'Joueur', description:"La Foudre des Couloirs : Capable de verrouiller sa défense ou de surgir sur l'aile."},
+      {id:12, prenom:'Saliou', nom:'Diouf', poste:'Axe central', numero_maillot:44, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Mur de Béton : Puissant, appliqué et concentré du début à la fin, il ne laisse passer personne."},
+      {id:13, prenom:'Djibril', nom:'Diouf', poste:'Axe central', numero_maillot:33, pied_fort:'Droit', statut_equipe:'Joueur', description:"L'Artiste de la Relance : Calme sous pression, propre dans ses interventions et dur sur l'homme."},
+      {id:14, prenom:'Mamadou', nom:'Diouf', poste:'Axe central', numero_maillot:4, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Commandant de la Charnière : Impérial dans les duels aériens, un vrai leader défensif."},
+      {id:15, prenom:'Ibrahima', nom:'Faye', poste:'Gardien', numero_maillot:16, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Mur de l'Infranchissable : Réflexes félins et sens du placement irréprochable."}
+  ];
+
+  const staff = [
+      {prenom:'Ousmane', nom:'Diouf', role:'Entraîneur Principal', description:"Stratège hors pair et leader charismatique, il insuffle rigueur, ambition et cohésion au groupe."},
+      {prenom:'Ousmane', nom:'Thiaw', role:'Entraîneur Adjoint', description:"Véritable relais tactique sur le terrain, il apporte son œil analytique."},
+      {prenom:'Pape Aliou', nom:'Fall', role:'Préparateur Physique', description:"Garant de l'explosivité et de l'endurance de l'équipe."},
+      {prenom:'Daouda', nom:'Diouf', role:'Responsable de la Logistique', description:"Maître de l'organisation et de la précision."},
+      {prenom:'Mamadou', nom:'Thiaw', role:'Entraîneur des Gardiens', description:"Spécialiste de l'exigence et des réflexes."},
+      {prenom:'Mamadou', nom:'Diouf', role:'Analyste Vidéo', description:"Décortique le jeu et les adversaires."},
+      {prenom:'Aliou', nom:'Diouf', role:'Staff Médical & Kinésithérapeute', description:"Assure la prévention des blessures et les soins."}
+  ];
+
+  const formations = {
+      '433': [
+          [{key:'att_g', label:'Attaque G'}, {key:'att_p', label:'Pointe'}, {key:'att_d', label:'Attaque D'}],
+          [{key:'mil_g', label:'Milieu Gauche'}, {key:'mil_c', label:'Milieu Centre'}, {key:'mil_d', label:'Milieu Droit'}],
+          [{key:'lat_g', label:'Lat. Gauche'}, {key:'axe_1', label:'Axe Central 1'}, {key:'axe_2', label:'Axe Central 2'}, {key:'lat_d', label:'Lat. Droit'}]
+      ],
+      '442': [
+          [{key:'att_1', label:'Attaquant 1'}, {key:'att_2', label:'Attaquant 2'}],
+          [{key:'mil_g', label:'Milieu Gauche'}, {key:'mil_a1', label:'Milieu Axe 1'}, {key:'mil_a2', label:'Milieu Axe 2'}, {key:'mil_d', label:'Milieu Droit'}],
+          [{key:'lat_g', label:'Lat. Gauche'}, {key:'axe_1', label:'Axe Central 1'}, {key:'axe_2', label:'Axe Central 2'}, {key:'lat_d', label:'Lat. Droit'}]
+      ],
+      '532': [
+          [{key:'att_1', label:'Attaquant 1'}, {key:'att_2', label:'Attaquant 2'}],
+          [{key:'mil_1', label:'Milieu 1'}, {key:'mil_2', label:'Milieu 2'}, {key:'mil_3', label:'Milieu 3'}],
+          [{key:'pis_g', label:'Piston G'}, {key:'axe_1', label:'Axe 1'}, {key:'axe_2', label:'Axe 2'}, {key:'axe_3', label:'Axe 3'}, {key:'pis_d', label:'Piston D'}]
+      ],
+      '5123': [
+          [{key:'ail_g', label:'Ailier G'}, {key:'but', label:'Buteur'}, {key:'ail_d', label:'Ailier D'}],
+          [{key:'mo_1', label:'Milieu Off 1'}, {key:'mo_2', label:'Milieu Off 2'}],
+          [{key:'sent', label:'Sentinelle (Mdr)'}],
+          [{key:'pis_g', label:'Piston G'}, {key:'axe_1', label:'Axe 1'}, {key:'axe_2', label:'Axe 2'}, {key:'axe_3', label:'Axe 3'}, {key:'pis_d', label:'Piston D'}]
+      ],
+      '541': [
+          [{key:'att', label:'Pointe Unique'}],
+          [{key:'mil_g', label:'Milieu G'}, {key:'mil_a1', label:'Milieu Axe 1'}, {key:'mil_a2', label:'Milieu Axe 2'}, {key:'mil_d', label:'Milieu D'}],
+          [{key:'pis_g', label:'Piston G'}, {key:'axe_1', label:'Axe 1'}, {key:'axe_2', label:'Axe 2'}, {key:'axe_3', label:'Axe 3'}, {key:'pis_d', label:'Piston D'}]
+      ]
+  };
+
+  let matchs = [];
+  let matchIdSeq = 1;
+  let positionnements = {};
+  let statsManuelles = {};
+
+  // ===================== CHARGEMENT DEPUIS JSONBIN =====================
+  async function chargerDonneesJSONbin() {
+      try {
+          const response = await fetch(JSONBIN_URL + '/latest', {
+              headers: { 'X-Master-Key': JSONBIN_API_KEY }
+          });
+          if (response.ok) {
+              const json = await response.json();
+              const data = json.record || {};
+              matchs = data.matchs || [];
+              matchIdSeq = data.matchIdSeq || 1;
+              positionnements = data.positionnements || {};
+              statsManuelles = data.statsManuelles || {};
+          } else {
+              afficherErreurAdmin("Impossible de charger les données en ligne. Vérifie ta connexion.");
+          }
+      } catch (e) {
+          console.error('Erreur de chargement JSONBin:', e);
+          afficherErreurAdmin("Impossible de charger les données en ligne. Vérifie ta connexion.");
+      }
+
+      joueurs.forEach(j => {
+          if (!statsManuelles[j.id]) statsManuelles[j.id] = { buts: 0, passes: 0 };
+      });
+
+      renderEffectif();
+      renderStaff();
+      renderClassement('433');
+      renderMatchs();
+
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) overlay.style.display = 'none';
+  }
+
+  // Enregistre sur JSONBin. Retourne true si succès, false sinon.
+  async function sauvegarderSurJSONbin() {
+      const dataObj = {
+          matchs: matchs,
+          matchIdSeq: matchIdSeq,
+          positionnements: positionnements,
+          statsManuelles: statsManuelles
+      };
+      try {
+          const response = await fetch(JSONBIN_URL, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'X-Master-Key': JSONBIN_API_KEY
+              },
+              body: JSON.stringify(dataObj)
+          });
+          if (!response.ok) {
+              afficherErreurAdmin("Erreur lors de l'enregistrement en ligne. Réessaie.");
+              return false;
+          }
+          return true;
+      } catch (e) {
+          console.error('Erreur de sauvegarde JSONBin:', e);
+          afficherErreurAdmin("Erreur réseau lors de l'enregistrement.");
+          return false;
+      }
+  }
+  // ======================================================================
+
+  let dispoActuel = '433';
+
+  window.showPage = function(page) {
+      document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+      document.getElementById('page-' + page).classList.add('active');
+      document.querySelectorAll('[data-page]').forEach(a => a.classList.remove('active-page'));
+      const active = document.querySelector('[data-page="' + page + '"]');
+      if (active) active.classList.add('active-page');
+      if (page === 'effectif') renderEffectif();
+      if (page === 'staff') renderStaff();
+      if (page === 'classement') renderClassement(dispoActuel);
+      if (page === 'matchs') {
+          renderMatchs();
+          renderStatsJoueursTable();
+      }
+  }
+
+  function afficherErreurAdmin(msg) {
+      const el = document.getElementById('alert-admin');
+      el.textContent = '⚠️ ' + msg;
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+
+  function statsJoueur(joueurId) {
+      let buts = 0, passes = 0;
+      matchs.forEach(m => {
+          m.actions.forEach(a => {
+              if (a.joueur_id === joueurId) {
+                  if (a.type === 'But') buts++;
+                  if (a.type === 'Passe décisive') passes++;
+              }
+          });
+      });
+      const manuel = statsManuelles[joueurId] || { buts: 0, passes: 0 };
+      return { buts: buts + manuel.buts, passes: passes + manuel.passes };
+  }
+
+  function renderEffectif() {
+      const recherche = (document.getElementById('recherche-effectif').value || '').trim().toLowerCase();
+      let liste = joueurs.slice().sort((a, b) => b.id - a.id);
+      if (recherche) {
+          liste = liste.filter(j => j.prenom.toLowerCase().includes(recherche) || j.nom.toLowerCase().includes(recherche) || j.poste.toLowerCase().includes(recherche));
+      }
+      const container = document.getElementById('effectif-container');
+      container.innerHTML = '';
+      liste.forEach(j => {
+          const s = statsJoueur(j.id);
+          const capitaine = j.statut_equipe === 'Capitaine' ? '<div class="badge bg-warning text-dark mb-2 px-2 py-1">👑 Capitaine</div>' : '';
+          const col = document.createElement('div');
+          col.className = 'col-md-4 mb-4';
+          col.innerHTML = `
+              <div class="card h-100 shadow-sm border-0 border-top border-success border-4">
+                  <a href="#" class="text-decoration-none text-dark" onclick="ouvrirProfil(${j.id});return false;">
+                      <div class="card-body text-center pb-2 pt-4 px-4">
+                          <div class="badge bg-success mb-2 px-3 py-1 fs-6">N° ${j.numero_maillot}</div>
+                          ${capitaine}
+                          <h4 class="card-title fw-bold text-dark mt-1">${escapeHtml(j.prenom + ' ' + j.nom)}</h4>
+                          <span class="badge bg-secondary mb-3">${escapeHtml(j.poste)}</span>
+                          <p class="card-text small text-muted mb-2">👟 Pied : ${escapeHtml(j.pied_fort)}</p>
+                      </div>
+                  </a>
+                  <div class="px-4 pb-4">
+                      <div class="text-end mb-2"><small class="text-muted">Total : ⚽ ${s.buts} · 👟 ${s.passes}</small></div>
+                      ${j.description ? `<hr class="my-2"><p class="small text-secondary fst-italic mb-0">${escapeHtml(j.description)}</p>` : ''}
+                  </div>
+              </div>`;
+          container.appendChild(col);
+      });
+  }
+
+  window.ouvrirProfil = function(id) {
+      const j = joueurs.find(x => x.id === id);
+      if (!j) return;
+      const s = statsJoueur(j.id);
+      document.getElementById('modalProfilBody').innerHTML = `
+          <div class="display-1 text-success mb-2">👕 ${j.numero_maillot}</div>
+          <span class="badge bg-success fs-5 mb-3 mx-auto px-3 py-2">${escapeHtml(j.poste)}</span>
+          <h1 class="fw-bold mb-3">${escapeHtml(j.prenom + ' ' + j.nom)}</h1>
+          <div class="row text-center my-3 g-2">
+              <div class="col-6"><div class="p-3 border bg-light rounded"><h3 class="text-success fw-bold mb-0">⚽ ${s.buts}</h3><small>Buts</small></div></div>
+              <div class="col-6"><div class="p-3 border bg-light rounded"><h3 class="text-primary fw-bold mb-0">👟 ${s.passes}</h3><small>Passes</small></div></div>
+          </div>
+          <p class="fs-5 text-muted mb-4 mt-2"><strong>👟 Pied fort :</strong> ${escapeHtml(j.pied_fort)}</p>
+          ${j.description ? `<div class="alert alert-success bg-white border-success text-dark mb-4 py-3">🌟 <em>${escapeHtml(j.description)}</em></div>` : ''}
+      `;
+      new bootstrap.Modal(document.getElementById('modalProfil')).show();
+  }
+
+  function renderStaff() {
+      const container = document.getElementById('staff-container');
+      container.innerHTML = '';
+      staff.forEach(s => {
+          const col = document.createElement('div');
+          col.className = 'col-md-4 mb-4';
+          col.innerHTML = `
+              <div class="card h-100 shadow-sm border-0 border-start border-success border-4 p-3">
+                  <div class="card-body">
+                      <span class="badge bg-success mb-2 px-2 py-1">${escapeHtml(s.role)}</span>
+                      <h4 class="card-title fw-bold text-dark mb-3">${escapeHtml(s.prenom + ' ' + s.nom)}</h4>
+                      <p class="card-text text-secondary small fst-italic">${escapeHtml(s.description)}</p>
+                  </div>
+              </div>`;
+          container.appendChild(col);
+      });
+  }
+
+  function renderStatsJoueursTable() {
+      const tbody = document.getElementById('stats-joueurs-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      joueursTriesParPrenom().forEach(j => {
+          const manuel = statsManuelles[j.id] || { buts: 0, passes: 0 };
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+              <td>${escapeHtml(j.prenom + ' ' + j.nom)} <small class="text-muted">(N°${j.numero_maillot})</small></td>
+              <td><input type="number" min="0" class="form-control form-control-sm stat-input-buts" data-joueur-id="${j.id}" value="${manuel.buts}"></td>
+              <td><input type="number" min="0" class="form-control form-control-sm stat-input-passes" data-joueur-id="${j.id}" value="${manuel.passes}"></td>`;
+          tbody.appendChild(tr);
+      });
+  }
+
+  window.enregistrerStatsJoueurs = async function() {
+      const mdp = document.getElementById('admin-password-stats').value;
+      if (mdp !== ADMIN_PASSWORD) {
+          afficherErreurAdmin('Ce mot de passe n\'est pas valide !');
+          return;
+      }
+      document.querySelectorAll('#stats-joueurs-tbody tr').forEach(tr => {
+          const inputButs = tr.querySelector('.stat-input-buts');
+          const inputPasses = tr.querySelector('.stat-input-passes');
+          const jid = inputButs.dataset.joueurId;
+          statsManuelles[jid] = {
+              buts: Math.max(0, parseInt(inputButs.value, 10) || 0),
+              passes: Math.max(0, parseInt(inputPasses.value, 10) || 0)
+          };
+      });
+      const btn = document.getElementById('btn-save-stats');
+      btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
+      const ok = await sauvegarderSurJSONbin();
+      btn.disabled = false; btn.textContent = '💾 Enregistrer les statistiques';
+      document.getElementById('admin-password-stats').value = '';
+      renderMatchs();
+      if (ok) alert('Statistiques enregistrées en ligne, visibles par tout le monde !');
+  }
+
+  function joueursTriesParPrenom() {
+      return joueurs.slice().sort((a, b) => a.prenom.localeCompare(b.prenom, 'fr'));
+  }
+
+  function optionsJoueurs(selectedId) {
+      let html = '<option value="">-- Choisir --</option>';
+      joueursTriesParPrenom().forEach(j => {
+          const sel = selectedId && String(selectedId) === String(j.id) ? 'selected' : '';
+          html += `<option value="${j.id}" ${sel}>${escapeHtml(j.prenom + ' ' + j.nom)} (N°${j.numero_maillot})</option>`;
+      });
+      return html;
+  }
+
+  window.renderClassement = function(dispo) {
+      dispoActuel = dispo;
+      document.getElementById('terrain-titre').textContent = 'Dispositif : ' + dispo + ' (Terrain de Keur Ndoga)';
+      const btnContainer = document.getElementById('dispo-buttons');
+      btnContainer.innerHTML = '';
+      ['433', '442', '532', '5123', '541'].forEach(d => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn ' + (d === dispo ? 'btn-success' : 'btn-outline-success') + ' fw-bold';
+          btn.textContent = d;
+          btn.onclick = () => renderClassement(d);
+          btnContainer.appendChild(btn);
+      });
+
+      const placements = positionnements[dispo] || {};
+      const rowsContainer = document.getElementById('terrain-rows');
+      rowsContainer.innerHTML = '';
+      formations[dispo].forEach(row => {
+          const rowDiv = document.createElement('div');
+          rowDiv.className = 'row text-center justify-content-center mb-4';
+          row.forEach(poste => {
+              const col = document.createElement('div');
+              col.className = 'col-md-' + Math.max(2, Math.floor(12 / row.length));
+              col.innerHTML = `<strong>${poste.label}</strong><br>
+                  <select data-poste="${poste.key}" class="form-select form-select-sm player-select">
+                      ${optionsJoueurs(placements[poste.key])}
+                  </select>`;
+              rowDiv.appendChild(col);
+          });
+          rowsContainer.appendChild(rowDiv);
+      });
+      document.getElementById('pos-gardien').innerHTML = optionsJoueurs(placements['gardien']);
+      document.getElementById('admin-password-terrain').value = '';
+  }
+
+  window.sauvegarderTerrain = async function(event) {
+      event.preventDefault();
+      const mdp = document.getElementById('admin-password-terrain').value;
+      if (mdp !== ADMIN_PASSWORD) {
+          afficherErreurAdmin('Ce mot de passe n\'est pas valide !');
+          return false;
+      }
+      if (!positionnements[dispoActuel]) positionnements[dispoActuel] = {};
+      document.querySelectorAll('#page-classement .player-select').forEach(sel => {
+          const key = sel.dataset.poste || 'gardien';
+          positionnements[dispoActuel][key] = sel.value ? parseInt(sel.value, 10) : '';
+      });
+      const btn = document.getElementById('btn-save-terrain');
+      btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
+      const ok = await sauvegarderSurJSONbin();
+      btn.disabled = false; btn.textContent = '💾 Enregistrer mon classement';
+      if (ok) alert('Classement enregistré en ligne, visible par tout le monde !');
+      return false;
+  }
+
+  function renderMatchs() {
+      const mContainer = document.getElementById('matchs-container');
+      mContainer.innerHTML = '';
+      matchs.slice().reverse().forEach(m => {
+          const col = document.createElement('div');
+          col.className = 'col-md-6 mb-4';
+          col.innerHTML = `
+              <div class="card shadow-sm border-0 h-100">
+                  <div class="card-body">
+                      <div class="d-flex justify-content-between text-muted small mb-2">
+                          <span>📅 ${escapeHtml(m.date)}</span>
+                          <span>Adversaire : <strong>${escapeHtml(m.adversaire)}</strong></span>
+                      </div>
+                      <h3 class="text-center fw-bold text-success my-3">Keur Ndoga ${m.score_equipe} - ${m.score_adversaire} ${escapeHtml(m.adversaire)}</h3>
+                      <hr>
+                      <h6 class="fw-bold text-secondary">Actions :</h6>
+                      <ul class="small mb-0">
+                          ${m.actions.map(a => {
+                              const joueurObj = joueurs.find(x => x.id === a.joueur_id);
+                              return `<li><strong>${escapeHtml(a.type)}</strong> : ${escapeHtml(joueurObj ? joueurObj.prenom + ' ' + joueurObj.nom : 'Inconnu')}</li>`;
+                          }).join('') || '<li>Aucune action.</li>'}
+                      </ul>
+                      <div class="mt-3 pt-3 border-top">
+                          <div class="d-flex justify-content-end">
+                              <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="toggleSuppressionMatch(${m.id})">🗑️ Supprimer ce match</button>
+                          </div>
+                          <div id="suppr-row-${m.id}" style="display:none;" class="mt-2 p-2 bg-light rounded border">
+                              <label class="form-label small fw-bold text-danger mb-1">🔒 Mot de passe Admin pour confirmer :</label>
+                              <div class="input-group input-group-sm">
+                                  <input type="password" id="suppr-mdp-${m.id}" class="form-control">
+                                  <button type="button" class="btn btn-danger fw-bold" onclick="supprimerMatch(${m.id})">Confirmer</button>
+                                  <button type="button" class="btn btn-secondary" onclick="toggleSuppressionMatch(${m.id})">Annuler</button>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>`;
+          mContainer.appendChild(col);
+      });
+  }
+
+  window.toggleSuppressionMatch = function(matchId) {
+      const row = document.getElementById('suppr-row-' + matchId);
+      if (!row) return;
+      row.style.display = row.style.display === 'none' ? 'block' : 'none';
+  }
+
+  window.supprimerMatch = async function(matchId) {
+      const match = matchs.find(m => m.id === matchId);
+      if (!match) return;
+
+      const input = document.getElementById('suppr-mdp-' + matchId);
+      const mdp = input ? input.value : '';
+      if (mdp !== ADMIN_PASSWORD) {
+          afficherErreurAdmin('Ce mot de passe n\'est pas valide !');
+          return;
+      }
+
+      matchs = matchs.filter(m => m.id !== matchId);
+      renderMatchs();
+
+      const ok = await sauvegarderSurJSONbin();
+      if (ok) {
+          alert('Match supprimé en ligne, pour tout le monde !');
+      } else {
+          alert('Le match a été retiré ici mais la suppression en ligne a échoué. Recharge la page pour vérifier.');
+      }
+  }
+
+  window.ajouterLigneAction = function() {
+      const container = document.getElementById('actions-container');
+      const div = document.createElement('div');
+      div.className = 'input-group';
+      div.innerHTML = `
+          <select class="form-select action-joueur">
+              <option value="">-- Choisir un joueur --</option>
+              ${joueursTriesParPrenom().map(j => `<option value="${j.id}">${escapeHtml(j.prenom + ' ' + j.nom)} (N°${j.numero_maillot})</option>`).join('')}
+          </select>
+          <select class="form-select action-type" style="max-width: 180px;">
+              <option value="But">⚽ But</option>
+              <option value="Passe décisive">👟 Passe décisive</option>
+              <option value="CSC">❌ CSC</option>
+          </select>
+          <button type="button" class="btn btn-outline-danger" onclick="this.closest('.input-group').remove()">X</button>
+      `;
+      container.appendChild(div);
+  }
+
+  window.ajouterMatch = async function(event) {
+      event.preventDefault();
+      const mdp = document.getElementById('admin-password-match').value;
+      if (mdp !== ADMIN_PASSWORD) {
+          afficherErreurAdmin('Ce mot de passe n\'est pas valide !');
+          return false;
+      }
+      const adversaire = document.getElementById('m-adversaire').value.trim();
+      const scoreEquipe = parseInt(document.getElementById('m-score-equipe').value, 10);
+      const scoreAdversaire = parseInt(document.getElementById('m-score-adversaire').value, 10);
+      const date = document.getElementById('m-date').value;
+
+      const actions = [];
+      document.querySelectorAll('#actions-container .input-group').forEach(grp => {
+          const jId = grp.querySelector('.action-joueur').value;
+          const type = grp.querySelector('.action-type').value;
+          if (jId) actions.push({ joueur_id: parseInt(jId, 10), type: type });
+      });
+
+      matchs.push({ id: matchIdSeq++, adversaire, score_equipe: scoreEquipe, score_adversaire: scoreAdversaire, date, actions });
+
+      const btn = document.getElementById('btn-save-match');
+      btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
+      const ok = await sauvegarderSurJSONbin();
+      btn.disabled = false; btn.textContent = 'Enregistrer le match complet';
+
+      document.getElementById('m-adversaire').value = '';
+      document.getElementById('m-score-equipe').value = '';
+      document.getElementById('m-score-adversaire').value = '';
+      document.getElementById('m-date').value = '';
+      document.getElementById('actions-container').innerHTML = '';
+      document.getElementById('admin-password-match').value = '';
+
+      renderMatchs();
+      if (ok) alert('Match enregistré en ligne, visible par tout le monde !');
+      return false;
+  }
+
+  function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+
+  // Lancement au chargement de la page
+  chargerDonneesJSONbin();
+
+  // Enregistrement du service worker (nécessaire pour que le site soit installable en PWA)
+  if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js').catch(err => {
+              console.log('Service worker non enregistré :', err);
+          });
+      });
+  }
+</script>
+</body>
+</html>
