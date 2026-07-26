@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keur Ndoga - Stars du Quartier</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    .terrain-vert {
+        background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+        border: 4px solid white;
+        border-radius: 15px;
+        min-height: 550px;
+        position: relative;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+    }
+    .ligne-centrale {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: rgba(255,255,255,0.4);
+    }
+    .cercle-central {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100px;
+        height: 100px;
+        border: 2px solid rgba(255,255,255,0.4);
+        border-radius: 50%;
+    }
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+    .nav-link.active-page { text-decoration: underline; }
+</style>
+</head>
+<body class="bg-light">
+
+<!-- Barre de Navigation Principale -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-success mb-4 shadow">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#" onclick="showPage('accueil');return false;">🌳 Keur Ndoga</a>
+        <div class="navbar-nav ms-auto flex-row gap-3">
+            <a href="#" data-page="accueil" class="nav-link text-white fw-bold" onclick="showPage('accueil');return false;">🏠 Accueil</a>
+            <a href="#" data-page="effectif" class="nav-link text-white fw-bold" onclick="showPage('effectif');return false;">👥 Effectif</a>
+            <a href="#" data-page="staff" class="nav-link text-white fw-bold" onclick="showPage('staff');return false;">👔 Staff</a>
+            <a href="#" data-page="classement" class="nav-link text-white fw-bold" onclick="showPage('classement');return false;">📋 Classement (Terrain)</a>
+            <a href="#" data-page="matchs" class="nav-link text-white fw-bold" onclick="showPage('matchs');return false;">🏟️ Matchs &amp; Stats</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container pb-5">
+
+    <div id="alert-admin" class="alert alert-danger text-center fw-bold shadow-sm" style="display:none;"></div>
+
+    <!-- PAGE D'ACCUEIL -->
+    <div id="page-accueil" class="page-section active">
+        <div class="text-center py-5">
+            <div class="mb-3" style="font-size: 5rem;">🌳⚽</div>
+            <h1 class="display-4 fw-bold text-success">KEUR NDOGA</h1>
+            <h3 class="text-muted fst-italic mb-4">"L'Alliance des Cœurs"</h3>
+            <p class="lead text-secondary mx-auto" style="max-width: 600px;">
+                Bienvenue sur la plateforme officielle de notre équipe de football de quartier. Tout le monde peut consulter les classements, l'effectif et les stats en direct. Seul l'administrateur peut effectuer des modifications.
+            </p>
+        </div>
+    </div>
+
+    <!-- PAGE EFFECTIF -->
+    <div id="page-effectif" class="page-section">
+        <div class="row mb-4 align-items-center">
+            <div class="col-md-6">
+                <h1 class="h3 text-success fw-bold">Effectif Complet des Joueurs</h1>
+            </div>
+            <div class="col-md-6">
+                <div class="d-flex gap-2">
+                    <input type="text" id="recherche-effectif" class="form-control" placeholder="Rechercher par nom, prénom ou poste...">
+                    <button type="button" class="btn btn-success" onclick="renderEffectif()">Rechercher</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('recherche-effectif').value='';renderEffectif();">Tous</button>
+                </div>
+            </div>
+        </div>
+        <div class="row" id="effectif-container"></div>
+    </div>
+
+    <!-- PAGE STAFF -->
+    <div id="page-staff" class="page-section">
+        <h1 class="h3 text-success fw-bold mb-3">👔 Le Staff Technique &amp; Administratif</h1>
+        <p class="text-muted mb-4">Découvrez les hommes de l'ombre qui encadrent, structurent et font progresser l'équipe au quotidien.</p>
+        <div class="row" id="staff-container"></div>
+
+        <hr class="my-5">
+
+        <div class="card shadow-sm border-0 p-4 bg-white">
+            <h5 class="text-success fw-bold mb-1">✏️ Modifier les statistiques des joueurs</h5>
+            <p class="text-muted small mb-3">Ajuste directement le nombre de buts et de passes décisives de chaque joueur (indépendamment des matchs enregistrés).</p>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Joueur</th>
+                            <th style="width:140px;">⚽ Buts</th>
+                            <th style="width:140px;">👟 Passes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stats-joueurs-tbody"></tbody>
+                </table>
+            </div>
+            <div class="mb-3" style="max-width: 400px;">
+                <label class="form-label fw-bold text-danger">🔒 Mot de passe Administrateur :</label>
+                <input type="password" id="admin-password-stats" class="form-control" placeholder="Mot de passe requis">
+            </div>
+            <div>
+                <button type="button" class="btn btn-success fw-bold px-4" onclick="enregistrerStatsJoueurs()">💾 Enregistrer les statistiques</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE CLASSEMENT SUR LE TERRAIN -->
+    <div id="page-classement" class="page-section">
+        <h1 class="h3 text-success fw-bold mb-3">📋 Classement Tactique sur le Terrain</h1>
+        <p class="text-muted mb-4">Consultez la composition tactique ci-dessous. Pour modifier les postes, le mot de passe administrateur sera demandé.</p>
+
+        <div class="d-flex flex-wrap gap-2 mb-4" id="dispo-buttons"></div>
+
+        <form onsubmit="return sauvegarderTerrain(event)">
+            <div class="terrain-vert p-4 mb-4 text-white position-relative">
+                <div class="ligne-centrale"></div>
+                <div class="cercle-central"></div>
+                <h4 class="text-center fw-bold text-warning mb-4 bg-dark bg-opacity-50 py-2 rounded" id="terrain-titre"></h4>
+                <div id="terrain-rows"></div>
+                <div class="row text-center justify-content-center mt-3 pt-3 border-top border-light">
+                    <div class="col-md-4">
+                        <strong>🧤 Gardien de But</strong><br>
+                        <select id="pos-gardien" class="form-select form-select-sm player-select">
+                            <option value="">-- Choisir le gardien --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-3 mb-3 bg-white shadow-sm mx-auto" style="max-width: 400px;">
+                <label class="form-label fw-bold text-danger">🔒 Mot de passe Administrateur :</label>
+                <input type="password" id="admin-password-terrain" class="form-control" placeholder="Entrez le mot de passe requis" required>
+            </div>
+
+            <div class="text-center">
+                <button type="submit" class="btn btn-success btn-lg px-5 fw-bold shadow">💾 Enregistrer mon classement</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- PAGE MATCHS & STATS -->
+    <div id="page-matchs" class="page-section">
+        <h1 class="h3 text-success fw-bold mb-4">🏟️ Historique, Matchs et Statistiques des Joueurs</h1>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 p-3 bg-white h-100">
+                    <h5 class="text-success fw-bold mb-3">⚽ Top Buteurs de l'équipe</h5>
+                    <div id="top-buteurs"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 p-3 bg-white h-100">
+                    <h5 class="text-primary fw-bold mb-3">👟 Top Passeurs de l'équipe</h5>
+                    <div id="top-passeurs"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 p-4 mb-4 bg-white">
+            <h5 class="text-success fw-bold mb-3">➕ Enregistrer un nouveau match &amp; ses actions</h5>
+            <form onsubmit="return ajouterMatch(event)">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Adversaire :</label>
+                        <input type="text" id="m-adversaire" class="form-control" placeholder="Nom de l'équipe adverse" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Score Keur Ndoga :</label>
+                        <input type="number" id="m-score-equipe" class="form-control" min="0" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Score Adversaire :</label>
+                        <input type="number" id="m-score-adversaire" class="form-control" min="0" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Date :</label>
+                        <input type="date" id="m-date" class="form-control" required>
+                    </div>
+                </div>
+
+                <hr>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold text-secondary mb-0">⚽ Buteurs, Passeurs &amp; CSC du match</h6>
+                    <button type="button" class="btn btn-outline-success btn-sm fw-bold" onclick="ajouterLigneAction()">+ Ajouter un but/passe/csc</button>
+                </div>
+
+                <div id="actions-container" class="vstack gap-2 mb-3"></div>
+
+                <div class="mb-3" style="max-width: 400px;">
+                    <label class="form-label fw-bold text-danger">🔒 Mot de passe Administrateur :</label>
+                    <input type="password" id="admin-password-match" class="form-control" placeholder="Mot de passe requis" required>
+                </div>
+
+                <button type="submit" class="btn btn-success fw-bold px-4">Enregistrer le match complet</button>
+            </form>
+        </div>
+
+        <div class="row" id="matchs-container"></div>
+    </div>
+
+</div>
+
+<!-- MODAL PROFIL JOUEUR -->
+<div class="modal fade" id="modalProfil" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body p-4 text-center" id="modalProfilBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ==========================================
+// DONNEES (équivalent des tables joueurs / staff)
+// Note : dans le PHP d'origine, ces données étaient insérées automatiquement
+// en base si la table "joueurs" était vide.
+// ==========================================
+const ADMIN_PASSWORD = 'keurndoga2026'; // ⚠️ Côté serveur (PHP) ce mot de passe reste caché.
+                                         // Ici, en HTML/JS pur, il est visible dans le code source :
+                                         // ce n'est donc plus une vraie sécurité, juste une simulation.
+
+const joueurs = [
+    {id:1, prenom:'Daouda', nom:'Diouf', poste:'Milieu', numero_maillot:99, pied_fort:'Droit', statut_equipe:'Capitaine', description:"L'Empereur du Milieu : Il dicte le tempo, récupère les ballons et régale le public."},
+    {id:2, prenom:'Abdoul Aziz', nom:'Diouf', poste:'Pointe', numero_maillot:9, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Fauve de la Surface : Puissant, rapide et doté d'un pied droit chirurgical pour faire trembler les filets."},
+    {id:3, prenom:'Serigne Saliou', nom:'Faye', poste:'Ex centre', numero_maillot:7, pied_fort:'Droit', statut_equipe:'Joueur', description:"La Terreur des Ailes : Vif, technique et doté d'une accélération foudroyante."},
+    {id:4, prenom:'Mamadou Mansour', nom:'Diouf', poste:'Ex centre et mo', numero_maillot:75, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Phénomène Technique : Capable de faire la différence sur un crochet ou d'inventer une passe décisive."},
+    {id:5, prenom:'Saliou', nom:'Diagne', poste:'Pointe', numero_maillot:19, pied_fort:'Droit', statut_equipe:'Joueur', description:"L'Instinct du Buteur : Ne laisse aucune chance aux gardiens grâce à son sang-froid redoutable."},
+    {id:6, prenom:'Abdou Aziz', nom:'Diouf', poste:'Mdr', numero_maillot:41, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Coffre-Fort : Il récupère, il nettoie, il distribue. Le poumon de l'équipe."},
+    {id:7, prenom:'Serigne Fallou', nom:'Thiaw', poste:'Mr mo', numero_maillot:47, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Chef d'Orchestre : Vision du jeu panoramique, passes millimétrées et sens du tempo."},
+    {id:8, prenom:'Mouhamed', nom:'Diouf', poste:'Mr', numero_maillot:88, pied_fort:'Gauche / Droite', statut_equipe:'Joueur', description:"L'Arme Fatale : Aussi habile du gauche que du droit, un milieu moderne et imprévisible."},
+    {id:9, prenom:'Modou', nom:'Diouf', poste:'Lateral gauche', numero_maillot:6, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Moteur Diesel : Infatigable, il arpente son couloir gauche du début à la fin du match."},
+    {id:10, prenom:'Mohamet', nom:'Diouf', poste:'Lateral droite', numero_maillot:8, pied_fort:'Gauche', statut_equipe:'Joueur', description:"La Précision Chirurgicale : Une vision du jeu rare pour un latéral et une solidité à toute épreuve."},
+    {id:11, prenom:'Mbissane', nom:'Mbaye', poste:'Lateral / ex centre', numero_maillot:2, pied_fort:'Droit', statut_equipe:'Joueur', description:"La Foudre des Couloirs : Capable de verrouiller sa défense ou de surgir sur l'aile."},
+    {id:12, prenom:'Saliou', nom:'Diouf', poste:'Axe central', numero_maillot:44, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Mur de Béton : Puissant, appliqué et concentré du début à la fin, il ne laisse passer personne."},
+    {id:13, prenom:'Djibril', nom:'Diouf', poste:'Axe central', numero_maillot:33, pied_fort:'Droit', statut_equipe:'Joueur', description:"L'Artiste de la Relance : Calme sous pression, propre dans ses interventions et dur sur l'homme."},
+    {id:14, prenom:'Mamadou', nom:'Diouf', poste:'Axe central', numero_maillot:4, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Commandant de la Charnière : Impérial dans les duels aériens, un vrai leader défensif."},
+    {id:15, prenom:'Ibrahima', nom:'Faye', poste:'Gardien', numero_maillot:16, pied_fort:'Droit', statut_equipe:'Joueur', description:"Le Mur de l'Infranchissable : Réflexes félins et sens du placement irréprochable."}
+];
+
+const staff = [
+    {prenom:'Ousmane', nom:'Diouf', role:'Entraîneur Principal', description:"Stratège hors pair et leader charismatique, il insuffle rigueur, ambition et cohésion au groupe pour viser l'excellence à chaque match."},
+    {prenom:'Ousmane', nom:'Thiaw', role:'Entraîneur Adjoint', description:"Véritable relais tactique sur le terrain, il apporte son œil analytique et son soutien précieux dans la préparation des séances et des oppositions."},
+    {prenom:'Pape Aliou', nom:'Fall', role:'Préparateur Physique', description:"Garant de l'explosivité, de l'endurance et de la fraîcheur athlétique des joueurs, il pousse l'équipe à repousser ses limites physiques."},
+    {prenom:'Daouda', nom:'Diouf', role:'Responsable de la Logistique', description:"Maître de l'organisation et de la précision, il veille à ce que chaque équipement et chaque détail logistique soient parfaits pour le confort de l'équipe."},
+    {prenom:'Mamadou', nom:'Thiaw', role:'Entraîneur des Gardiens', description:"Spécialiste de l'exigence et des réflexes, il prépare et forge ses gardiens pour en faire des remparts imprenables."},
+    {prenom:'Mamadou', nom:'Diouf', role:'Analyste Vidéo', description:"À l'affût du moindre détail tactique, il décortique le jeu et les adversaires pour offrir des clés précieuses au staff technique."},
+    {prenom:'Aliou', nom:'Diouf', role:'Staff Médical & Kinésithérapeute', description:"À l'écoute des corps et de la santé des joueurs, il assure la prévention des blessures, les soins et un retour rapide sur les terrains."}
+];
+
+// équivalent des tables "matches" et "buteurs" (vides au départ, comme en base neuve)
+let matchs = [];
+let matchIdSeq = 1;
+
+// équivalent de la table "positionnements" : {schema_type: {poste_cle: joueur_id}}
+let positionnements = {};
+
+// Ajustements manuels des stats (buts/passes) saisis depuis la page Staff,
+// qui s'ajoutent à ce qui est calculé automatiquement à partir des matchs.
+let statsManuelles = {}; // { joueur_id: { buts: n, passes: n } }
+joueurs.forEach(j => { statsManuelles[j.id] = { buts: 0, passes: 0 }; });
+
+// Définition des postes par dispositif (équivalent des blocs PHP répétés pour chaque formation)
+const formations = {
+    '433': [
+        [{key:'att_g', label:'Attaque G'}, {key:'att_p', label:'Pointe'}, {key:'att_d', label:'Attaque D'}],
+        [{key:'mil_g', label:'Milieu Gauche'}, {key:'mil_c', label:'Milieu Centre'}, {key:'mil_d', label:'Milieu Droit'}],
+        [{key:'lat_g', label:'Lat. Gauche'}, {key:'axe_1', label:'Axe Central 1'}, {key:'axe_2', label:'Axe Central 2'}, {key:'lat_d', label:'Lat. Droit'}]
+    ],
+    '442': [
+        [{key:'att_1', label:'Attaquant 1'}, {key:'att_2', label:'Attaquant 2'}],
+        [{key:'mil_g', label:'Milieu Gauche'}, {key:'mil_a1', label:'Milieu Axe 1'}, {key:'mil_a2', label:'Milieu Axe 2'}, {key:'mil_d', label:'Milieu Droit'}],
+        [{key:'lat_g', label:'Lat. Gauche'}, {key:'axe_1', label:'Axe Central 1'}, {key:'axe_2', label:'Axe Central 2'}, {key:'lat_d', label:'Lat. Droit'}]
+    ],
+    '532': [
+        [{key:'att_1', label:'Attaquant 1'}, {key:'att_2', label:'Attaquant 2'}],
+        [{key:'mil_1', label:'Milieu 1'}, {key:'mil_2', label:'Milieu 2'}, {key:'mil_3', label:'Milieu 3'}],
+        [{key:'pis_g', label:'Piston G'}, {key:'axe_1', label:'Axe 1'}, {key:'axe_2', label:'Axe 2'}, {key:'axe_3', label:'Axe 3'}, {key:'pis_d', label:'Piston D'}]
+    ],
+    '5123': [
+        [{key:'ail_g', label:'Ailier G'}, {key:'but', label:'Buteur'}, {key:'ail_d', label:'Ailier D'}],
+        [{key:'mo_1', label:'Milieu Off 1'}, {key:'mo_2', label:'Milieu Off 2'}],
+        [{key:'sent', label:'Sentinelle (Mdr)'}],
+        [{key:'pis_g', label:'Piston G'}, {key:'axe_1', label:'Axe 1'}, {key:'axe_2', label:'Axe 2'}, {key:'axe_3', label:'Axe 3'}, {key:'pis_d', label:'Piston D'}]
+    ],
+    '541': [
+        [{key:'att', label:'Pointe Unique'}],
+        [{key:'mil_g', label:'Milieu G'}, {key:'mil_a1', label:'Milieu Axe 1'}, {key:'mil_a2', label:'Milieu Axe 2'}, {key:'mil_d', label:'Milieu D'}],
+        [{key:'pis_g', label:'Piston G'}, {key:'axe_1', label:'Axe 1'}, {key:'axe_2', label:'Axe 2'}, {key:'axe_3', label:'Axe 3'}, {key:'pis_d', label:'Piston D'}]
+    ]
+};
+
+let dispoActuel = '433';
+
+// ==========================================
+// NAVIGATION
+// ==========================================
+function showPage(page) {
+    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    document.querySelectorAll('[data-page]').forEach(a => a.classList.remove('active-page'));
+    const active = document.querySelector('[data-page="' + page + '"]');
+    if (active) active.classList.add('active-page');
+    if (page === 'effectif') renderEffectif();
+    if (page === 'staff') renderStaff();
+    if (page === 'classement') renderClassement(dispoActuel);
+    if (page === 'matchs') renderMatchs();
+}
+
+function afficherErreurAdmin(msg) {
+    const el = document.getElementById('alert-admin');
+    el.textContent = '⚠️ ' + msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+// ==========================================
+// STATS D'UN JOUEUR (à partir de matchs/actions)
+// ==========================================
+function statsJoueur(joueurId) {
+    let buts = 0, passes = 0;
+    matchs.forEach(m => {
+        m.actions.forEach(a => {
+            if (a.joueur_id === joueurId) {
+                if (a.type === 'But') buts++;
+                if (a.type === 'Passe décisive') passes++;
+            }
+        });
+    });
+    const manuel = statsManuelles[joueurId] || { buts: 0, passes: 0 };
+    return { buts: buts + manuel.buts, passes: passes + manuel.passes };
+}
+
+// ==========================================
+// PAGE EFFECTIF
+// ==========================================
+function renderEffectif() {
+    const recherche = (document.getElementById('recherche-effectif').value || '').trim().toLowerCase();
+    let liste = joueurs.slice().sort((a, b) => b.id - a.id); // ORDER BY id DESC (comportement par défaut du PHP)
+    if (recherche) {
+        liste = liste.filter(j =>
+            j.prenom.toLowerCase().includes(recherche) ||
+            j.nom.toLowerCase().includes(recherche) ||
+            j.poste.toLowerCase().includes(recherche)
+        );
+    }
+    const container = document.getElementById('effectif-container');
+    container.innerHTML = '';
+    liste.forEach(j => {
+        const s = statsJoueur(j.id);
+        const manuel = statsManuelles[j.id] || { buts: 0, passes: 0 };
+        const capitaine = j.statut_equipe === 'Capitaine'
+            ? '<div class="badge bg-warning text-dark mb-2 px-2 py-1">👑 Capitaine</div>' : '';
+        const col = document.createElement('div');
+        col.className = 'col-md-4 mb-4';
+        col.innerHTML = `
+            <div class="card h-100 shadow-sm border-0 border-top border-success border-4">
+                <a href="#" class="text-decoration-none text-dark" onclick="ouvrirProfil(${j.id});return false;">
+                    <div class="card-body text-center pb-2 pt-4 px-4">
+                        <div class="badge bg-success mb-2 px-3 py-1 fs-6">N° ${j.numero_maillot}</div>
+                        ${capitaine}
+                        <h4 class="card-title fw-bold text-dark mt-1">${escapeHtml(j.prenom + ' ' + j.nom)}</h4>
+                        <span class="badge bg-secondary mb-3">${escapeHtml(j.poste)}</span>
+                        <p class="card-text small text-muted mb-2">👟 Pied : ${escapeHtml(j.pied_fort)}</p>
+                    </div>
+                </a>
+                <div class="px-4 pb-4">
+                    <div class="row g-2 align-items-end bg-light py-2 px-2 rounded my-2">
+                        <div class="col-6">
+                            <label class="form-label small text-success fw-bold mb-0">⚽ Buts</label>
+                            <input type="number" min="0" class="form-control form-control-sm effectif-stat-buts" data-joueur-id="${j.id}" value="${manuel.buts}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-primary fw-bold mb-0">👟 Passes</label>
+                            <input type="number" min="0" class="form-control form-control-sm effectif-stat-passes" data-joueur-id="${j.id}" value="${manuel.passes}">
+                        </div>
+                    </div>
+                    <div class="text-end mb-2">
+                        <small class="text-muted">Total (matchs + ajustement) : ⚽ ${s.buts} · 👟 ${s.passes}</small>
+                    </div>
+                    <button type="button" class="btn btn-outline-success btn-sm w-100 fw-bold" onclick="enregistrerStatCarte(${j.id}, this)">💾 Enregistrer</button>
+                    ${j.description ? `<hr class="my-2"><p class="small text-secondary fst-italic mb-0" style="font-size:0.85rem;">${escapeHtml(j.description)}</p>` : ''}
+                </div>
+            </div>`;
+        container.appendChild(col);
+    });
+    renderStatsJoueursTable();
+}
+
+function enregistrerStatCarte(joueurId, btn) {
+    const mdp = prompt('Entrez le mot de passe administrateur pour modifier les statistiques :');
+    if (mdp === null) return;
+    if (mdp !== ADMIN_PASSWORD) {
+        afficherErreurAdmin('Mot de passe administrateur incorrect ! Modification refusée.');
+        return;
+    }
+    const card = btn.closest('.card');
+    const inputButs = card.querySelector('.effectif-stat-buts');
+    const inputPasses = card.querySelector('.effectif-stat-passes');
+    statsManuelles[joueurId] = {
+        buts: Math.max(0, parseInt(inputButs.value, 10) || 0),
+        passes: Math.max(0, parseInt(inputPasses.value, 10) || 0)
+    };
+    renderEffectif();
+}
+
+function ouvrirProfil(id) {
+    const j = joueurs.find(x => x.id === id);
+    if (!j) return;
+    const s = statsJoueur(j.id);
+    const capitaine = j.statut_equipe === 'Capitaine'
+        ? '<span class="badge bg-warning text-dark fs-6 mb-2 mx-auto px-3 py-1">👑 Capitaine</span><br>' : '';
+    document.getElementById('modalProfilBody').innerHTML = `
+        <div class="display-1 text-success mb-2">👕 ${j.numero_maillot}</div>
+        ${capitaine}
+        <span class="badge bg-success fs-5 mb-3 mx-auto px-3 py-2">${escapeHtml(j.poste)}</span>
+        <h1 class="fw-bold mb-3">${escapeHtml(j.prenom + ' ' + j.nom)}</h1>
+        <div class="row text-center my-3 g-2">
+            <div class="col-6">
+                <div class="p-3 border bg-light rounded shadow-sm">
+                    <h3 class="text-success fw-bold mb-0">⚽ ${s.buts}</h3>
+                    <small class="text-muted fw-bold">Buts marqués</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="p-3 border bg-light rounded shadow-sm">
+                    <h3 class="text-primary fw-bold mb-0">👟 ${s.passes}</h3>
+                    <small class="text-muted fw-bold">Passes décisives</small>
+                </div>
+            </div>
+        </div>
+        <p class="fs-5 text-muted mb-4 mt-2"><strong>👟 Pied fort :</strong> ${escapeHtml(j.pied_fort)}</p>
+        ${j.description ? `<div class="alert alert-success bg-white border-success border-2 text-dark mb-4 py-3">🌟 <em>${escapeHtml(j.description)}</em></div>` : ''}
+    `;
+    new bootstrap.Modal(document.getElementById('modalProfil')).show();
+}
+
+// ==========================================
+// PAGE STAFF
+// ==========================================
+function renderStaff() {
+    const container = document.getElementById('staff-container');
+    container.innerHTML = '';
+    staff.forEach(s => {
+        const col = document.createElement('div');
+        col.className = 'col-md-4 mb-4';
+        col.innerHTML = `
+            <div class="card h-100 shadow-sm border-0 border-start border-success border-4 p-3">
+                <div class="card-body">
+                    <span class="badge bg-success mb-2 px-2 py-1">${escapeHtml(s.role)}</span>
+                    <h4 class="card-title fw-bold text-dark mb-3">${escapeHtml(s.prenom + ' ' + s.nom)}</h4>
+                    <p class="card-text text-secondary small fst-italic">${escapeHtml(s.description)}</p>
+                </div>
+            </div>`;
+        container.appendChild(col);
+    });
+    renderStatsJoueursTable();
+}
+
+function renderStatsJoueursTable() {
+    const tbody = document.getElementById('stats-joueurs-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    joueursTriesParPrenom().forEach(j => {
+        const manuel = statsManuelles[j.id] || { buts: 0, passes: 0 };
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${escapeHtml(j.prenom + ' ' + j.nom)} <small class="text-muted">(N°${j.numero_maillot})</small></td>
+            <td><input type="number" min="0" class="form-control form-control-sm stat-input-buts" data-joueur-id="${j.id}" value="${manuel.buts}"></td>
+            <td><input type="number" min="0" class="form-control form-control-sm stat-input-passes" data-joueur-id="${j.id}" value="${manuel.passes}"></td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function enregistrerStatsJoueurs() {
+    const mdp = document.getElementById('admin-password-stats').value;
+    if (mdp !== ADMIN_PASSWORD) {
+        afficherErreurAdmin('Mot de passe administrateur incorrect ! Modification des statistiques refusée.');
+        return;
+    }
+    document.querySelectorAll('#stats-joueurs-tbody tr').forEach(tr => {
+        const inputButs = tr.querySelector('.stat-input-buts');
+        const inputPasses = tr.querySelector('.stat-input-passes');
+        const jid = inputButs.dataset.joueurId;
+        statsManuelles[jid] = {
+            buts: Math.max(0, parseInt(inputButs.value, 10) || 0),
+            passes: Math.max(0, parseInt(inputPasses.value, 10) || 0)
+        };
+    });
+    document.getElementById('admin-password-stats').value = '';
+    renderEffectif(); // rafraîchit aussi les cartes joueurs et le tableau des stats
+}
+
+// ==========================================
+// PAGE CLASSEMENT (TERRAIN)
+// ==========================================
+function joueursTriesParPrenom() {
+    return joueurs.slice().sort((a, b) => a.prenom.localeCompare(b.prenom, 'fr'));
+}
+
+function optionsJoueurs(selectedId) {
+    let html = '<option value="">-- Choisir --</option>';
+    joueursTriesParPrenom().forEach(j => {
+        const sel = selectedId && String(selectedId) === String(j.id) ? 'selected' : '';
+        html += `<option value="${j.id}" ${sel}>${escapeHtml(j.prenom + ' ' + j.nom)} (N°${j.numero_maillot})</option>`;
+    });
+    return html;
+}
+
+function renderClassement(dispo) {
+    dispoActuel = dispo;
+    document.getElementById('terrain-titre').textContent = 'Dispositif : ' + dispo + ' (Terrain de Keur Ndoga)';
+
+    const btnContainer = document.getElementById('dispo-buttons');
+    btnContainer.innerHTML = '';
+    ['433', '442', '532', '5123', '541'].forEach(d => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn ' + (d === dispo ? 'btn-success' : 'btn-outline-success') + ' fw-bold';
+        btn.textContent = d === '433' ? '4-3-3' : d === '442' ? '4-4-2' : d === '532' ? '5-3-2' : d === '5123' ? '5-1-2-3' : '5-4-1';
+        btn.onclick = () => renderClassement(d);
+        btnContainer.appendChild(btn);
+    });
+
+    const placements = positionnements[dispo] || {};
+    const rowsContainer = document.getElementById('terrain-rows');
+    rowsContainer.innerHTML = '';
+    formations[dispo].forEach(row => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'row text-center justify-content-center mb-4';
+        row.forEach(poste => {
+            const col = document.createElement('div');
+            col.className = 'col-md-' + Math.max(2, Math.floor(12 / row.length));
+            col.innerHTML = `<strong>${poste.label}</strong><br>
+                <select data-poste="${poste.key}" class="form-select form-select-sm player-select">
+                    ${optionsJoueurs(placements[poste.key])}
+                </select>`;
+            rowDiv.appendChild(col);
+        });
+        rowsContainer.appendChild(rowDiv);
+    });
+
+    document.getElementById('pos-gardien').innerHTML = optionsJoueurs(placements['gardien']);
+    document.getElementById('pos-gardien').dataset.poste = 'gardien';
+
+    activerExclusionSelects();
+}
+
+function activerExclusionSelects() {
+    const selects = document.querySelectorAll('#page-classement .player-select');
+    function update() {
+        const valeurs = Array.from(selects).map(s => s.value).filter(v => v !== '');
+        selects.forEach(select => {
+            const valeurActuelle = select.value;
+            Array.from(select.options).forEach(option => {
+                if (option.value === '') return;
+                if (valeurs.includes(option.value) && option.value !== valeurActuelle) {
+                    option.disabled = true;
+                    option.style.color = '#ccc';
+                } else {
+                    option.disabled = false;
+                    option.style.color = '';
+                }
+            });
+        });
+    }
+    selects.forEach(s => s.addEventListener('change', update));
+    update();
+}
+
+function sauvegarderTerrain(evt) {
+    evt.preventDefault();
+    const mdp = document.getElementById('admin-password-terrain').value;
+    if (mdp !== ADMIN_PASSWORD) {
+        afficherErreurAdmin('Mot de passe administrateur incorrect ! Modifications refusées.');
+        return false;
+    }
+    const placements = {};
+    document.querySelectorAll('#page-classement .player-select').forEach(select => {
+        if (select.value) placements[select.dataset.poste] = select.value;
+    });
+    positionnements[dispoActuel] = placements;
+    document.getElementById('admin-password-terrain').value = '';
+    renderClassement(dispoActuel);
+    return false;
+}
+
+// ==========================================
+// PAGE MATCHS
+// ==========================================
+function ajouterLigneAction() {
+    const container = document.getElementById('actions-container');
+    const index = container.children.length;
+    let optionsHtml = '<option value="">-- Sélectionner un joueur --</option>';
+    joueursTriesParPrenom().forEach(j => {
+        optionsHtml += `<option value="${j.id}">${escapeHtml(j.prenom + ' ' + j.nom)} (N°${j.numero_maillot})</option>`;
+    });
+
+    const row = document.createElement('div');
+    row.className = 'row g-2 align-items-center action-row bg-light p-2 rounded border';
+    row.dataset.index = index;
+    row.innerHTML = `
+        <div class="col-md-3">
+            <select class="form-select form-select-sm action-type-select" required>
+                <option value="But">⚽ But (Keur Ndoga)</option>
+                <option value="Passe décisive">👟 Passe décisive</option>
+                <option value="CSC">🥅 But contre son camp (CSC)</option>
+            </select>
+        </div>
+        <div class="col-md-5 joueur-field-container">
+            <select class="form-select form-select-sm action-joueur-select">${optionsHtml}</select>
+        </div>
+        <div class="col-md-3 csc-field-container" style="display:none;">
+            <input type="text" class="form-control form-control-sm action-csc-input" placeholder="Nom de l'adversaire (ou détails CSC)">
+        </div>
+        <div class="col-md-1 text-end">
+            <button type="button" class="btn btn-danger btn-sm">❌</button>
+        </div>`;
+    container.appendChild(row);
+
+    const typeSelect = row.querySelector('.action-type-select');
+    const joueurContainer = row.querySelector('.joueur-field-container');
+    const cscContainer = row.querySelector('.csc-field-container');
+
+    typeSelect.addEventListener('change', function () {
+        if (this.value === 'CSC') {
+            joueurContainer.style.display = 'none';
+            cscContainer.style.display = 'block';
+            joueurContainer.querySelector('select').value = '';
+        } else {
+            joueurContainer.style.display = 'block';
+            cscContainer.style.display = 'none';
+            cscContainer.querySelector('input').value = '';
+        }
+    });
+
+    row.querySelector('.btn-danger').addEventListener('click', function () {
+        row.remove();
+    });
+}
+
+function ajouterMatch(evt) {
+    evt.preventDefault();
+    const mdp = document.getElementById('admin-password-match').value;
+    if (mdp !== ADMIN_PASSWORD) {
+        afficherErreurAdmin("Mot de passe administrateur incorrect ! Ajout du match refusé.");
+        return false;
+    }
+
+    const adversaire = document.getElementById('m-adversaire').value.trim();
+    const scoreEquipe = parseInt(document.getElementById('m-score-equipe').value, 10);
+    const scoreAdversaire = parseInt(document.getElementById('m-score-adversaire').value, 10);
+    const dateMatch = document.getElementById('m-date').value;
+    if (!adversaire || !dateMatch) return false;
+
+    let resultat = 'Match nul';
+    if (scoreEquipe > scoreAdversaire) resultat = 'Victoire';
+    else if (scoreEquipe < scoreAdversaire) resultat = 'Défaite';
+
+    const actions = [];
+    document.querySelectorAll('#actions-container .action-row').forEach(row => {
+        const type = row.querySelector('.action-type-select').value;
+        const joueurId = row.querySelector('.action-joueur-select').value;
+        const csc = row.querySelector('.action-csc-input').value.trim();
+        if (type === 'CSC' && csc) {
+            actions.push({ type: 'CSC', joueur_id: null, nom_adversaire_csc: csc });
+        } else if ((type === 'But' || type === 'Passe décisive') && joueurId) {
+            actions.push({ type, joueur_id: joueurId, nom_adversaire_csc: null });
+        }
+    });
+
+    matchs.unshift({ id: matchIdSeq++, adversaire, score_equipe: scoreEquipe, score_adversaire: scoreAdversaire, resultat, date_match: dateMatch, actions });
+
+    // reset formulaire
+    document.getElementById('m-adversaire').value = '';
+    document.getElementById('m-score-equipe').value = '';
+    document.getElementById('m-score-adversaire').value = '';
+    document.getElementById('m-date').value = '';
+    document.getElementById('actions-container').innerHTML = '';
+    document.getElementById('admin-password-match').value = '';
+
+    renderMatchs();
+    return false;
+}
+
+function supprimerMatch(id) {
+    const mdp = prompt('Entrez le mot de passe administrateur pour supprimer ce match :');
+    if (mdp === null) return;
+    if (mdp !== ADMIN_PASSWORD) {
+        afficherErreurAdmin('Mot de passe administrateur incorrect ! Suppression refusée.');
+        return;
+    }
+    matchs = matchs.filter(m => m.id !== id);
+    renderMatchs();
+}
+
+function renderMatchs() {
+    // Top buteurs / passeurs : buts/passes issus des matchs + ajustements manuels (page Staff/Effectif)
+    function topListe(cle) {
+        return joueurs
+            .map(j => ({ joueur: j, total: statsJoueur(j.id)[cle] }))
+            .filter(x => x.total > 0)
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 5);
+    }
+
+    const topButeurs = topListe('buts');
+    const topPasseurs = topListe('passes');
+
+    const elButeurs = document.getElementById('top-buteurs');
+    elButeurs.innerHTML = topButeurs.length === 0
+        ? '<p class="text-muted small fst-italic">Aucun but enregistré pour le moment.</p>'
+        : '<ul class="list-group list-group-flush">' + topButeurs.map(x => `
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>${escapeHtml(x.joueur.prenom + ' ' + x.joueur.nom)} <small class="text-muted">(N°${x.joueur.numero_maillot})</small></span>
+                <span class="badge bg-success rounded-pill fs-6">${x.total} but(s)</span>
+            </li>`).join('') + '</ul>';
+
+    const elPasseurs = document.getElementById('top-passeurs');
+    elPasseurs.innerHTML = topPasseurs.length === 0
+        ? '<p class="text-muted small fst-italic">Aucune passe décisive enregistrée pour le moment.</p>'
+        : '<ul class="list-group list-group-flush">' + topPasseurs.map(x => `
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>${escapeHtml(x.joueur.prenom + ' ' + x.joueur.nom)} <small class="text-muted">(N°${x.joueur.numero_maillot})</small></span>
+                <span class="badge bg-primary rounded-pill fs-6">${x.total} passe(s)</span>
+            </li>`).join('') + '</ul>';
+
+    // Liste des matchs
+    const container = document.getElementById('matchs-container');
+    if (matchs.length === 0) {
+        container.innerHTML = '<div class="col-12 text-center py-5"><p class="text-muted fs-5">Aucun match enregistré pour l\'instant.</p></div>';
+        return;
+    }
+    const matchsTries = matchs.slice().sort((a, b) => new Date(b.date_match) - new Date(a.date_match));
+    container.innerHTML = matchsTries.map(m => {
+        const badgeBg = m.resultat === 'Victoire' ? 'bg-success' : m.resultat === 'Défaite' ? 'bg-danger' : 'bg-warning text-dark';
+        const buteurs = m.actions.filter(a => a.type === 'But').map(a => '⚽ ' + escapeHtml(nomJoueur(a.joueur_id)));
+        const passeurs = m.actions.filter(a => a.type === 'Passe décisive').map(a => '👟 ' + escapeHtml(nomJoueur(a.joueur_id)));
+        const cscs = m.actions.filter(a => a.type === 'CSC').map(a => '🥅 ' + escapeHtml(a.nom_adversaire_csc));
+        const dateAff = new Date(m.date_match + 'T00:00:00');
+        const dateStr = isNaN(dateAff) ? m.date_match : dateAff.toLocaleDateString('fr-FR');
+        return `
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm border-0 p-3 position-relative">
+                <a href="#" onclick="supprimerMatch(${m.id});return false;" class="position-absolute top-0 end-0 m-2 text-danger text-decoration-none fw-bold" title="Supprimer ce match">❌</a>
+                <div class="d-flex justify-content-between align-items-center mb-2 pe-4">
+                    <span class="badge ${badgeBg} px-3 py-2">${m.resultat}</span>
+                    <small class="text-muted">📅 ${dateStr}</small>
+                </div>
+                <h4 class="text-center fw-bold my-2">
+                    Keur Ndoga <span class="text-success">${m.score_equipe} - ${m.score_adversaire}</span> ${escapeHtml(m.adversaire)}
+                </h4>
+                ${(buteurs.length || passeurs.length || cscs.length) ? `
+                <hr class="my-2">
+                <div class="small text-secondary">
+                    ${buteurs.length ? `<div><strong>Buteurs :</strong> ${buteurs.join(', ')}</div>` : ''}
+                    ${passeurs.length ? `<div><strong>Passeurs :</strong> ${passeurs.join(', ')}</div>` : ''}
+                    ${cscs.length ? `<div><strong>CSC :</strong> ${cscs.join(', ')}</div>` : ''}
+                </div>` : ''}
+
+                <hr class="my-2">
+                <h6 class="fw-bold small text-success mb-2">✏️ Modifier les buteurs de ce match</h6>
+                <div class="buteurs-edit-container vstack gap-2 mb-2" data-match-id="${m.id}"></div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-success btn-sm flex-grow-1" onclick="ajouterLigneButeurMatch(${m.id})">+ Ajouter un buteur</button>
+                    <button type="button" class="btn btn-success btn-sm flex-grow-1 fw-bold" onclick="enregistrerButeursMatch(${m.id})">💾 Enregistrer</button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    matchsTries.forEach(m => renderButeursEditor(m.id));
+}
+
+// Édition des buteurs (nom complet du joueur + nombre de buts) après coup, pour un match donné
+function joueurOptionsSimple(selectedId) {
+    let html = '<option value="">-- Choisir un joueur --</option>';
+    joueursTriesParPrenom().forEach(j => {
+        const sel = selectedId && String(selectedId) === String(j.id) ? 'selected' : '';
+        html += `<option value="${j.id}" ${sel}>${escapeHtml(j.prenom + ' ' + j.nom)}</option>`;
+    });
+    return html;
+}
+
+function renderButeursEditor(matchId) {
+    const m = matchs.find(x => x.id === matchId);
+    if (!m) return;
+    const container = document.querySelector(`.buteurs-edit-container[data-match-id="${matchId}"]`);
+    if (!container) return;
+    container.innerHTML = '';
+    const compte = {};
+    m.actions.forEach(a => {
+        if (a.type === 'But' && a.joueur_id) {
+            compte[a.joueur_id] = (compte[a.joueur_id] || 0) + 1;
+        }
+    });
+    const entrees = Object.entries(compte);
+    if (entrees.length === 0) {
+        ajouterLigneButeurMatch(matchId, '', 1);
+    } else {
+        entrees.forEach(([jid, total]) => ajouterLigneButeurMatch(matchId, jid, total));
+    }
+}
+
+function ajouterLigneButeurMatch(matchId, joueurId = '', buts = 1) {
+    const container = document.querySelector(`.buteurs-edit-container[data-match-id="${matchId}"]`);
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'row g-2 align-items-center buteur-edit-row';
+    row.innerHTML = `
+        <div class="col-7">
+            <select class="form-select form-select-sm buteur-select">${joueurOptionsSimple(joueurId)}</select>
+        </div>
+        <div class="col-3">
+            <input type="number" min="0" class="form-control form-control-sm buteur-nombre" value="${buts}">
+        </div>
+        <div class="col-2 text-end">
+            <button type="button" class="btn btn-danger btn-sm">❌</button>
+        </div>`;
+    row.querySelector('.btn-danger').addEventListener('click', () => row.remove());
+    container.appendChild(row);
+}
+
+function enregistrerButeursMatch(matchId) {
+    const mdp = prompt('Entrez le mot de passe administrateur pour modifier les buteurs :');
+    if (mdp === null) return;
+    if (mdp !== ADMIN_PASSWORD) {
+        afficherErreurAdmin('Mot de passe administrateur incorrect ! Modification refusée.');
+        return;
+    }
+    const m = matchs.find(x => x.id === matchId);
+    if (!m) return;
+    const container = document.querySelector(`.buteurs-edit-container[data-match-id="${matchId}"]`);
+    const nouveauxButs = [];
+    container.querySelectorAll('.buteur-edit-row').forEach(row => {
+        const joueurId = row.querySelector('.buteur-select').value;
+        const nombre = Math.max(0, parseInt(row.querySelector('.buteur-nombre').value, 10) || 0);
+        if (joueurId && nombre > 0) {
+            for (let i = 0; i < nombre; i++) {
+                nouveauxButs.push({ type: 'But', joueur_id: joueurId, nom_adversaire_csc: null });
+            }
+        }
+    });
+    // On garde les passes décisives et les CSC déjà enregistrés, seuls les buts sont remplacés
+    m.actions = m.actions.filter(a => a.type !== 'But').concat(nouveauxButs);
+    renderMatchs();
+}
+
+function nomJoueur(id) {
+    const j = joueurs.find(x => x.id === parseInt(id, 10));
+    return j ? j.prenom + ' ' + j.nom : '';
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+}
+
+// ==========================================
+// INITIALISATION
+// ==========================================
+document.addEventListener('DOMContentLoaded', function () {
+    renderEffectif();
+    renderStaff();
+    renderClassement('433');
+    renderMatchs();
+});
+</script>
+</body>
+</html>
